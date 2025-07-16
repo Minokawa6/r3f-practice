@@ -1,0 +1,11 @@
+Model Information:
+* title:	Dice (low and high poly)
+* source:	https://sketchfab.com/3d-models/dice-low-and-high-poly-49e06b3cb50a4a6087f5f64cbb3566a3
+* author:	vojtaklemperer (https://sketchfab.com/vojtaklemperer)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Dice (low and high poly)" (https://sketchfab.com/3d-models/dice-low-and-high-poly-49e06b3cb50a4a6087f5f64cbb3566a3) by vojtaklemperer (https://sketchfab.com/vojtaklemperer) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
