@@ -8,13 +8,27 @@ import {
 import { Canvas, useLoader, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { Box3, Vector3 } from "three";
 
 function easeInQuart(x) {
   return Math.pow(x, 4);
 }
+function easeOutQuad(x) {
+  return 1 - (1 - x) * (1 - x);
+}
+function easeInExpo(x) {
+  return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+}
+function easeInCubic(x) {
+  return x * x * x;
+}
 
 const GayumaD6 = forwardRef((props, ref) => {
   const model = useLoader(GLTFLoader, "/DiceGayuma2.glb");
+  const box = new Box3().setFromObject(model.scene);
+  const center = new Vector3();
+  box.getCenter(center);
+  model.scene.position.sub(center);
   const diceRef = useRef();
   const [rolling, setRolling] = useState(false);
   const [startTime, setStartTime] = useState(0);
@@ -23,6 +37,7 @@ const GayumaD6 = forwardRef((props, ref) => {
   const [targetRotation, setTargetRotation] = useState([0, 0, 0]);
 
   function rollGayumaD6() {
+    diceRef.current.position.y = 0;
     setRolling(true);
     setStartTime(performance.now() / 1000);
     setTargetRotation([
@@ -45,25 +60,25 @@ const GayumaD6 = forwardRef((props, ref) => {
 
     let height = 0;
 
-    const liftDuration = 0.1;
-    const holdDuration = 0.2;
+    const liftDuration = 0.2;
+    const holdDuration = 0.1;
     const dropDuration = 0.7;
 
     if (t < liftDuration) {
       const progress = t / liftDuration;
-      height = easeInQuart(progress) * 2;
+      height = Math.max(0, easeInExpo(progress) * 2);
     } else if (t < liftDuration + holdDuration) {
       height = 2;
     } else {
       const progress = (t - liftDuration - holdDuration) / dropDuration;
-      height = (1 - easeInQuart(progress)) * 2;
+      height = (1 - easeInCubic(progress)) * 2;
     }
 
     diceRef.current.position.y = height;
 
-    diceRef.current.rotation.x = targetRotation[0] * t;
-    diceRef.current.rotation.y = targetRotation[1] * t;
-    diceRef.current.rotation.z = targetRotation[2] * t;
+    diceRef.current.rotation.x = targetRotation[0] * (t * 2);
+    diceRef.current.rotation.y = targetRotation[1] * (t * 4);
+    diceRef.current.rotation.z = targetRotation[2] * (t * 2);
 
     if (t >= 1) {
       setRolling(false);
@@ -81,7 +96,7 @@ export default function ThreeD() {
     <>
       {/* <h1 className="text-3xl font-bold underline">Title</h1> */}
       <div className="flex items-center justify-center h-screen w-screen">
-        <div className="bg-gray-300 w-[90vw] h-[50vh]">
+        <div className=" w-[90vw] h-[50vh]">
           <Canvas className="">
             <Suspense fallback={null}>
               <ambientLight intensity={0.9} />
@@ -101,8 +116,8 @@ export default function ThreeD() {
                 <boxGeometry position={[5, 0, 0]} />
                 <meshStandardMaterial color="gray" />
               </mesh> */}
-              <GayumaD6 ref={diceRef} />
-              <OrbitControls />
+              <GayumaD6 ref={diceRef} scale={2} />
+              {/* <OrbitControls /> */}
             </Suspense>
           </Canvas>
           <button
