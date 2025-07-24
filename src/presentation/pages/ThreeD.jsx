@@ -9,6 +9,10 @@ import { Canvas, useLoader, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Box3, Vector3 } from "three";
+import {
+  modelPath,
+  facePositions,
+} from "../../data/3dDieSkins/GayumaDiceImport.js";
 
 function easeInQuart(x) {
   return Math.pow(x, 4);
@@ -24,27 +28,35 @@ function easeInCubic(x) {
 }
 
 const GayumaD6 = forwardRef((props, ref) => {
-  const model = useLoader(GLTFLoader, "/DiceGayuma2.glb");
+  const model = useLoader(GLTFLoader, modelPath);
+
   const box = new Box3().setFromObject(model.scene);
   const center = new Vector3();
   box.getCenter(center);
   model.scene.position.sub(center);
+
   const diceRef = useRef();
   const [rolling, setRolling] = useState(false);
   const [startTime, setStartTime] = useState(0);
+  const [spinOffset, setSpinOffset] = useState([0, 0, 0]);
   const duration = 2;
 
-  const [targetRotation, setTargetRotation] = useState([0, 0, 0]);
+  const [targetRotation, setTargetRotation] = useState(facePositions.get(1));
+  // facePositions[Math.floor(Math.random() * 6) + 1]
 
   function rollGayumaD6() {
     diceRef.current.position.y = 0;
     setRolling(true);
     setStartTime(performance.now() / 1000);
-    setTargetRotation([
-      Math.PI * (1 + Math.floor(Math.random() * 4)),
-      Math.PI * (1 + Math.floor(Math.random() * 4)),
-      Math.PI * (1 + Math.floor(Math.random() * 4)),
-    ]);
+    const faceIndex = Math.floor(Math.random() * 6) + 1;
+    setTargetRotation(facePositions.get(faceIndex));
+
+    const spin = [
+      (Math.random() * 0.5 + 2) * Math.PI * 2, // x
+      (Math.random() * 0.5 + 2) * Math.PI * 2, // y
+      Math.random() * Math.PI, // z
+    ];
+    setSpinOffset(spin);
   }
 
   useImperativeHandle(ref, () => ({
@@ -76,13 +88,18 @@ const GayumaD6 = forwardRef((props, ref) => {
 
     diceRef.current.position.y = height;
 
-    diceRef.current.rotation.x = targetRotation[0] * (t * 2);
-    diceRef.current.rotation.y = targetRotation[1] * (t * 4);
-    diceRef.current.rotation.z = targetRotation[2] * (t * 2);
+    diceRef.current.rotation.x = targetRotation[0] + spinOffset[0] * (1 - t);
+    diceRef.current.rotation.y = targetRotation[1] + spinOffset[1] * (1 - t);
+    diceRef.current.rotation.z = targetRotation[2] + spinOffset[2] * (1 - t);
 
     if (t >= 1) {
       setRolling(false);
       diceRef.current.position.y = 0;
+      diceRef.current.rotation.set(
+        targetRotation[0],
+        targetRotation[1],
+        targetRotation[2]
+      );
     }
   });
 
@@ -95,9 +112,9 @@ export default function ThreeD() {
   return (
     <>
       {/* <h1 className="text-3xl font-bold underline">Title</h1> */}
-      <div className="flex items-center justify-center h-screen w-screen">
-        <div className=" w-[90vw] h-[50vh]">
-          <Canvas className="">
+      <div className="flex items-center justify-center h-screen w-screen ">
+        <div className="flex flex-row justify-self-start w-[90vw] h-[90vh] bg-[url(/SpiritTray.png)] bg-no-repeat bg-contain bg-center relative">
+          <Canvas className="absolute">
             <Suspense fallback={null}>
               <ambientLight intensity={0.9} />
               <spotLight
@@ -116,7 +133,11 @@ export default function ThreeD() {
                 <boxGeometry position={[5, 0, 0]} />
                 <meshStandardMaterial color="gray" />
               </mesh> */}
-              <GayumaD6 ref={diceRef} scale={2} />
+              <GayumaD6
+                ref={diceRef}
+                scale={1.5}
+                rotation={facePositions.get(1)}
+              />
               {/* <OrbitControls /> */}
             </Suspense>
           </Canvas>
