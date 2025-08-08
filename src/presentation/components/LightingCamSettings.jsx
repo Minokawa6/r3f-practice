@@ -1,6 +1,6 @@
 import { OrthographicCamera } from "@react-three/drei";
 
-export default function LightingCamSettings() {
+export default function LightingCamSettings({ gridCenterX, gridCenterZ }) {
   return (
     <>
       <ambientLight intensity={0.8} />

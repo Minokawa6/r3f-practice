@@ -1,91 +1,113 @@
-import { useFrame, useLoader } from "@react-three/fiber";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import * as THREE from "three";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import easeInCubic from "../../domain/functions/easeInCubic";
 import easeInExpo from "../../domain/functions/easeInExpo";
+import { useLoadedDiceMeshes } from "../../domain/hooks/useLoadedDieMeshes";
 
-const useLoadedModels = (animatedDice, getModelBySides) => {
-  const modelImports = animatedDice
-    .map((die) => getModelBySides(die.sides)?.modelImport)
-    .filter(Boolean); // Filter out undefined
-
-  const uniqueImports = [...new Set(modelImports)];
-  const gltfs = useLoader(GLTFLoader, uniqueImports);
-
-  return new Map(uniqueImports.map((imp, i) => [imp, gltfs[i]]));
-};
 export default function DiceGroup({ animatedDice, getModelBySides, columns }) {
   const spacing = 2.5;
-  const dieRefs = useRef([]);
+  const diceRefs = useRef(new Map());
+  const dummy = new THREE.Object3D();
+
+  const diceMap = useLoadedDiceMeshes(animatedDice, getModelBySides);
+
+  // Group dice by their model import path
+  const diceByModel = useMemo(() => {
+    const map = new Map();
+    animatedDice.forEach((die, i) => {
+      const skin = getModelBySides(die.sides);
+      if (!skin?.modelImport) return;
+      if (!map.has(skin.modelImport)) map.set(skin.modelImport, []);
+      map.get(skin.modelImport).push({ die, index: i });
+    });
+    return map;
+  }, [animatedDice, getModelBySides]);
+
   const getGridPosition = (i) => {
-    const x = (i % columns) * spacing;
-    const z = Math.floor(i / columns) * spacing;
+    const x = (i % columns) * spacing - ((columns - 1) * spacing) / 2;
+    const z =
+      Math.floor(i / columns) * spacing -
+      ((Math.ceil(animatedDice.length / columns) - 1) * spacing) / 2;
     return [x, 0, z];
   };
-
-  const loadedModels = useLoadedModels(animatedDice, getModelBySides);
 
   useFrame((state) => {
     const now = state.clock.getElapsedTime();
 
-    animatedDice.forEach((die, i) => {
-      const obj = dieRefs.current[i];
-      if (!obj || !die.isRolling) return;
+    diceByModel.forEach((diceList, modelImport) => {
+      const instancedRef = diceRefs.current.get(modelImport);
+      if (!instancedRef) return;
 
-      const elapsed = now - die.startTime;
-      const t = Math.min(elapsed / 1.0, 1);
+      diceList.forEach(({ die, index }, instanceIndex) => {
+        const pos = getGridPosition(index);
 
-      let height = 0;
-      const liftDuration = 0.2;
-      const holdDuration = 0.1;
-      const dropDuration = 0.7;
+        let height = 0;
+        if (die.isRolling) {
+          const elapsed = now - die.startTime;
+          const t = Math.min(elapsed / 1.0, 1);
+          const liftDuration = 0.2;
+          const holdDuration = 0.1;
+          const dropDuration = 0.7;
 
-      if (t < liftDuration) {
-        height = easeInExpo(t / liftDuration) * 2;
-      } else if (t < liftDuration + holdDuration) {
-        height = 2;
-      } else {
-        const p = (t - liftDuration - holdDuration) / dropDuration;
-        height = (1 - easeInCubic(p)) * 2;
-      }
+          if (t < liftDuration) {
+            height = easeInExpo(t / liftDuration) * 2;
+          } else if (t < liftDuration + holdDuration) {
+            height = 2;
+          } else {
+            const p = (t - liftDuration - holdDuration) / dropDuration;
+            height = (1 - easeInCubic(p)) * 2;
+          }
 
-      obj.position.y = height;
+          dummy.rotation.set(
+            die.targetRotation.x + die.spinOffset.x * (1 - t),
+            die.targetRotation.y + die.spinOffset.y * (1 - t),
+            die.targetRotation.z + die.spinOffset.z * (1 - t)
+          );
 
-      obj.rotation.x = die.targetRotation.x + die.spinOffset.x * (1 - t);
-      obj.rotation.y = die.targetRotation.y + die.spinOffset.y * (1 - t);
-      obj.rotation.z = die.targetRotation.z + die.spinOffset.z * (1 - t);
+          if (t >= 1) {
+            die.isRolling = false;
+            height = 0;
+            dummy.rotation.set(
+              die.targetRotation.x,
+              die.targetRotation.y,
+              die.targetRotation.z
+            );
+          }
+        } else {
+          dummy.rotation.set(
+            die.targetRotation.x,
+            die.targetRotation.y,
+            die.targetRotation.z
+          );
+        }
 
-      if (t >= 1) {
-        die.isRolling = false;
-        obj.position.y = 0;
-        obj.rotation.set(
-          die.targetRotation.x,
-          die.targetRotation.y,
-          die.targetRotation.z
-        );
-      }
+        dummy.position.set(pos[0], height, pos[2]);
+        dummy.updateMatrix();
+        instancedRef.setMatrixAt(instanceIndex, dummy.matrix);
+      });
+
+      instancedRef.instanceMatrix.needsUpdate = true;
     });
   });
+
   return (
     <>
-      {animatedDice.map((die, index) => {
-        const skin = getModelBySides(die.sides);
-        if (!skin || !skin.modelImport) return null;
+      {Array.from(diceByModel.entries()).map(([modelImport, diceList]) => {
+        const meshes = diceMap.get(modelImport);
+        if (!meshes || meshes.length === 0) return null;
 
-        const model = loadedModels.get(skin.modelImport);
-        if (!model || !model.scene) return null;
-        console.log(model);
-        const position = getGridPosition(index);
+        // Pick first mesh for instancing
+        const mesh = meshes[0];
+
         return (
-          <primitive
-            key={die.id}
-            object={model.scene.clone()}
+          <instancedMesh
+            key={modelImport}
+            args={[mesh.geometry, mesh.material, diceList.length]}
             ref={(ref) => {
-              if (ref) dieRefs.current[index] = ref;
+              if (ref) diceRefs.current.set(modelImport, ref);
+              else diceRefs.current.delete(modelImport);
             }}
-            position={position}
-            scale={20}
           />
         );
       })}

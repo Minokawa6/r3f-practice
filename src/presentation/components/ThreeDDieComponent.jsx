@@ -4,10 +4,14 @@ import { useState, Suspense, useEffect } from "react";
 import useThreeDDiceRenderer from "../hooks/useThreeDDiceRenderer";
 import DiceGroup from "./DiceGroup";
 import LightingCamSettings from "./LightingCamSettings";
+import { OrbitControls } from "@react-three/drei";
 
 export default function ThreeDDieComponent() {
   const { dieMeshes, rollAllDice, getModelBySides } = useThreeDDiceRenderer();
   const [columns, setColumns] = useState(3);
+
+  const gridCenterX = (columns - 1) / 2;
+  const gridCenterZ = Math.ceil(dieMeshes.length / columns) / 2;
 
   useEffect(() => {
     function handleResize() {
@@ -20,16 +24,19 @@ export default function ThreeDDieComponent() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-  console.log(dieMeshes);
   return (
     <Canvas>
-      <Suspense>
-        <LightingCamSettings />
+      <Suspense fallback={null}>
+        <LightingCamSettings
+          gridCenterX={gridCenterX}
+          gridCenterZ={gridCenterZ}
+        />
         <DiceGroup
           animatedDice={dieMeshes}
           getModelBySides={getModelBySides}
           columns={columns}
         />
+        <OrbitControls />
       </Suspense>
     </Canvas>
   );

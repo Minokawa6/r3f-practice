@@ -27,7 +27,7 @@ export default function useThreeDDiceRenderer() {
 
     dice.forEach((d) => d.roll());
 
-    setAnimatedDice((prev) => {
+    setDieMeshes((prev) => {
       prev.map((die) => ({
         ...die,
         targetRotation: new THREE.Euler(
@@ -49,13 +49,13 @@ export default function useThreeDDiceRenderer() {
   const getModelBySides = (sides) => {
     if (!threeDDieSkin) return null;
     const map = {
-      4: threeDDieSkin.d4,
-      6: threeDDieSkin.d6,
-      8: threeDDieSkin.d8,
-      10: threeDDieSkin.d10,
-      12: threeDDieSkin.d12,
-      20: threeDDieSkin.d20,
-      100: threeDDieSkin.d100,
+      4: threeDDieSkin.threeDD4,
+      6: threeDDieSkin.threeDD6,
+      8: threeDDieSkin.threeDD8,
+      10: threeDDieSkin.threeDD10,
+      12: threeDDieSkin.threeDD12,
+      20: threeDDieSkin.threeDD20,
+      100: threeDDieSkin.threeDD100,
     };
     return map[sides] || threeDDieSkin.d20;
   };
